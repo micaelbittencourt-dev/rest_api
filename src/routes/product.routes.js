@@ -16,14 +16,18 @@ const {
 //Importing the product validation function from validation.middleware
 const { productSchema } = require("../middleware/validation.middleware");
 
+//Importing the upload function from out multer config file 
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" });
+
 // Route for creating a product
-router.post("", productSchema, create);
+ router.post("/", upload.array("files", 10), productSchema, create);
 
 //Route to update a specfic product
-router.put("/:id", productSchema, update);
+router.put("/:id", upload.array("files", 10), productSchema, update);
 
 //route to get all products
-router.get("", get);
+router.get("/", get);
 
 //route to get or show only a specfic product
 router.get("/:id", show);

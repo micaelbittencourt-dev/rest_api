@@ -22,6 +22,9 @@ const productSchema = mongoose.Schema({
     type: Number,
     required: [true, "price field is required"],
   },
+  files: {
+    type: Array,
+  },
 });
 
 //exporting the product schema as monngose collection

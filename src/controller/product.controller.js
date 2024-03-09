@@ -6,6 +6,12 @@ const productModel = require("../models/product.model");
 //Importing the UUIDv4 Library
 const { v4: uuidv4 } = require("uuid");
 
+// Importing the the cloudinary config 
+const cloudinary = require("../config/cloudinary")
+
+//Imporing file system library 
+const fs = require("fs");
+
 //Get all products async function
 const get = asyncHandler(async (req, res) => {
   //Fetching all products from the database and assigning it to products
@@ -47,25 +53,41 @@ const create = asyncHandler(async (req, res) => {
   //Destruct the data sent from req.body
   const { name, description, price } = req.body;
 
-  //we use uuidv4 to generate a random and unique id for the products
-  const productId = uuidv4();
-
+  const uploader = async (path) => await cloudinary.uploads(path, "Images");
   try {
-    //creating the product
-    const product = await new productModel({
-      productId: productId,
-      name: name,
-      description: description,
-      price: price,
-    });
+    if (req.method === "POST") {
+      const urls = [];
+      const files = req.files;
+      for (const file of files) {
+        const { path } = file;
+        const newPath = await uploader(path);
+        urls.push(newPath);
+        fs.unlinkSync(path);
+      }
 
-    const savedProduct = await product.save();
+      //we use uuidv4 to generate a random and unique id for the products
+      const productId = uuidv4();
 
-    return res.status(201).json({
-      success: true,
-      message: "product created sucessfully",
-      data: savedProduct,
-    });
+      //creating the product
+      const product = await new productModel({
+        productId: productId,
+        name: name,
+        description: description,
+        price: price,
+        files: urls,
+      });
+
+      product.save();
+      return res.status(200).json({
+        success: true,
+        message: "product created sucessfully",
+        data: product,
+      });
+    } else {
+      return res.status(405).json({
+        err: `${req.method} method not allowed`,
+      });
+    }
   } catch (error) {
     return res.status(412).send({
       success: false,
@@ -78,6 +100,8 @@ const update = asyncHandler(async (req, res) => {
   //Destruct the data sent from req.body
   const { name, description, price } = req.body;
 
+  const uploader = async (path) => await cloudinary.uploads(path, "Images");
+
   //Destructing the id from req.params
   const { id } = req.params;
 
@@ -87,25 +111,42 @@ const update = asyncHandler(async (req, res) => {
   try {
     if (product) {
       //updating the datas of that product
-      await product.updateOne(
-        {
-          $set: {
-            name: name,
-            description: description,
-            price: price,
-          },
-        },
-        {},
-        { new: true }
-      );
+      if (req.method === "PUT") {
+        const urls = [];
+        const files = req.files;
+        for (const file of files) {
+          const { path } = file;
+          const newPath = await uploader(path);
+          urls.push(newPath);
+          fs.unlinkSync(path);
+        }
 
-      let UpdatedProduct = await productModel.findOne({ productId: id });
+        //Updating the product
+        product.updateOne(
+          {
+            $set: {
+              name: name,
+              description: description,
+              price: price,
+              files: urls,
+            },
+          },
+          {},
+          { new: true }
+        );
+
+        let UpdatedProduct = await productModel.findOne({ productId: id });
 
       return res.status(201).json({
         success: true,
         message: "product updated sucessfully",
         data: UpdatedProduct,
       });
+      } else {
+        return res.status(405).json({
+          err: `${req.method} method not allowed`,
+        });
+      }
     } else {
       return res.status(400).json({
         success: false,
